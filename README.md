@@ -1,3 +1,3 @@
-### Advanced Graphics Programming
+# Advanced Graphics Programming
 
-# Assignment1
+### Assignment1
