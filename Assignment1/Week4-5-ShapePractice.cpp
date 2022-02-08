@@ -543,6 +543,7 @@ void ShapesApp::BuildShapeGeometry()
 	GeometryGenerator::MeshData Base1 = geoGen.CreateCylinder(0.5f, 0.5f, 1.0f, 10, 2);
 	GeometryGenerator::MeshData Base2 = geoGen.CreateCylinder(0.5f, 0.5f, 1.0f, 8, 2);
 	GeometryGenerator::MeshData Base3 = geoGen.CreateCylinder(0.5f, 0.0f, 1.0f, 10, 1);
+	GeometryGenerator::MeshData top = geoGen.CreateSphere(0.5f, 11, 10);
 
 
 	
@@ -565,6 +566,7 @@ void ShapesApp::BuildShapeGeometry()
 	UINT Base1VertexOffset = columnTopVertexOffset + (UINT)columnTop.Vertices.size();
 	UINT Base2VertexOffset = Base1VertexOffset + (UINT)Base1.Vertices.size();
 	UINT Base3VertexOffset = Base2VertexOffset + (UINT)Base2.Vertices.size();
+	UINT topVertexOffset = Base3VertexOffset + (UINT)Base3.Vertices.size();
 	
 	//Step2
 	/*UINT gridVertexOffset = (UINT)wholeWall.Vertices.size();
@@ -579,6 +581,7 @@ void ShapesApp::BuildShapeGeometry()
 	UINT Base1IndexOffset = columnTopIndexOffset + (UINT)columnTop.Indices32.size();
 	UINT Base2IndexOffset = Base1IndexOffset + (UINT)Base1.Indices32.size();
 	UINT Base3IndexOffset = Base2IndexOffset + (UINT)Base2.Indices32.size();
+	UINT topIndexOffset = Base3IndexOffset + (UINT)Base3.Indices32.size();
 
 
 	//Step3
@@ -624,6 +627,11 @@ void ShapesApp::BuildShapeGeometry()
 	Base3Submesh.StartIndexLocation = Base3IndexOffset;
 	Base3Submesh.BaseVertexLocation = Base3VertexOffset;
 
+	SubmeshGeometry topSubmesh;
+	topSubmesh.IndexCount = (UINT)top.Indices32.size();
+	topSubmesh.StartIndexLocation = topIndexOffset;
+	topSubmesh.BaseVertexLocation = topVertexOffset;
+
 	//step4
 	/*SubmeshGeometry gridSubmesh;
 	gridSubmesh.IndexCount = (UINT)grid.Indices32.size();
@@ -652,7 +660,8 @@ void ShapesApp::BuildShapeGeometry()
 		columnTop.Vertices.size() +
 		Base1.Vertices.size() + 
 		Base2.Vertices.size() +
-		Base3.Vertices.size();
+		Base3.Vertices.size() +
+		top.Vertices.size();
 
 	std::vector<Vertex> vertices(totalVertexCount);
 
@@ -700,6 +709,12 @@ void ShapesApp::BuildShapeGeometry()
 		vertices[k].Color = XMFLOAT4(DirectX::Colors::Cyan);
 	}
 
+	for (size_t i = 0; i < top.Vertices.size(); ++i, ++k)
+	{
+		vertices[k].Pos = top.Vertices[i].Position;
+		vertices[k].Color = XMFLOAT4(DirectX::Colors::Red);
+	}
+
 
 	//for (size_t i = 0; i < cylinder.Vertices.size(); ++i, ++k)
 	//{
@@ -715,6 +730,7 @@ void ShapesApp::BuildShapeGeometry()
 	indices.insert(indices.end(), std::begin(Base1.GetIndices16()), std::end(Base1.GetIndices16()));
 	indices.insert(indices.end(), std::begin(Base2.GetIndices16()), std::end(Base2.GetIndices16()));
 	indices.insert(indices.end(), std::begin(Base3.GetIndices16()), std::end(Base3.GetIndices16()));
+	indices.insert(indices.end(), std::begin(top.GetIndices16()), std::end(top.GetIndices16()));
 
 
 	//indices.insert(indices.end(), std::begin(cylinder.GetIndices16()), std::end(cylinder.GetIndices16()));
@@ -749,6 +765,7 @@ void ShapesApp::BuildShapeGeometry()
 	geo->DrawArgs["Base1"] = Base1Submesh;
 	geo->DrawArgs["Base2"] = Base2Submesh;
 	geo->DrawArgs["Base3"] = Base3Submesh;
+	geo->DrawArgs["top"] = topSubmesh;
 	//step8
 	/*geo->DrawArgs["grid"] = gridSubmesh;
 	geo->DrawArgs["sphere"] = sphereSubmesh;
@@ -995,6 +1012,16 @@ void ShapesApp::BuildRenderItems()
 	Base3->StartIndexLocation = Base3->Geo->DrawArgs["Base3"].StartIndexLocation;
 	Base3->BaseVertexLocation = Base3->Geo->DrawArgs["Base3"].BaseVertexLocation;
 	mAllRitems.push_back(std::move(Base3));
+
+	auto top = std::make_unique<RenderItem>();
+	XMStoreFloat4x4(&top->World, XMMatrixScaling(2.0f, 2.0f, 2.0f)* XMMatrixTranslation(0.0f, 18.0f, 0.0f));
+	top->ObjCBIndex = cbindex++;
+	top->Geo = mGeometries["shapeGeo"].get();
+	top->PrimitiveType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	top->IndexCount = top->Geo->DrawArgs["top"].IndexCount;
+	top->StartIndexLocation = top->Geo->DrawArgs["top"].StartIndexLocation;
+	top->BaseVertexLocation = top->Geo->DrawArgs["top"].BaseVertexLocation;
+	mAllRitems.push_back(std::move(top));
 
 
 
