@@ -540,6 +540,7 @@ void ShapesApp::BuildShapeGeometry()
 	GeometryGenerator::MeshData grid = geoGen.CreateGrid(24.0f, 24.0f, 25, 25);
 	GeometryGenerator::MeshData column = geoGen.CreateCylinder(0.5f, 0.5f, 1.0f, 20, 20);
 	GeometryGenerator::MeshData columnTop = geoGen.CreateSphere(0.5f, 4, 2);
+	GeometryGenerator::MeshData Base1 = geoGen.CreateCylinder(0.5f, 0.5f, 1.0f, 10, 2);
 
 
 	
@@ -559,6 +560,7 @@ void ShapesApp::BuildShapeGeometry()
 	UINT gridVertexOffset = (UINT)wholeWall.Vertices.size();
 	UINT columnVertexOffset = gridVertexOffset + (UINT)grid.Vertices.size();
 	UINT columnTopVertexOffset = columnVertexOffset + (UINT)column.Vertices.size();
+	UINT Base1VertexOffset = columnTopVertexOffset + (UINT)columnTop.Vertices.size();
 	
 	//Step2
 	/*UINT gridVertexOffset = (UINT)wholeWall.Vertices.size();
@@ -570,7 +572,8 @@ void ShapesApp::BuildShapeGeometry()
 	UINT gridIndexOffset = (UINT)wholeWall.Indices32.size();
 	UINT columnIndexOffset = gridIndexOffset + (UINT)grid.Indices32.size();
 	UINT columnTopIndexOffset = columnIndexOffset + (UINT)column.Indices32.size();
-	
+	UINT Base1IndexOffset = columnTopIndexOffset + (UINT)columnTop.Indices32.size();
+
 	//Step3
 	/*UINT gridIndexOffset = (UINT)wholeWall.Indices32.size();
 	UINT sphereIndexOffset = gridIndexOffset + (UINT)grid.Indices32.size();
@@ -599,6 +602,11 @@ void ShapesApp::BuildShapeGeometry()
 	columnTopSubmesh.StartIndexLocation = columnTopIndexOffset;
 	columnTopSubmesh.BaseVertexLocation = columnTopVertexOffset;
 
+	SubmeshGeometry Base1Submesh;
+	Base1Submesh.IndexCount = (UINT)Base1.Indices32.size();
+	Base1Submesh.StartIndexLocation = Base1IndexOffset;
+	Base1Submesh.BaseVertexLocation = Base1VertexOffset;
+
 	//step4
 	/*SubmeshGeometry gridSubmesh;
 	gridSubmesh.IndexCount = (UINT)grid.Indices32.size();
@@ -624,7 +632,8 @@ void ShapesApp::BuildShapeGeometry()
 		wholeWall.Vertices.size() +
 		grid.Vertices.size() +
 		column.Vertices.size() +
-		columnTop.Vertices.size();
+		columnTop.Vertices.size() +
+		Base1.Vertices.size();
 
 	std::vector<Vertex> vertices(totalVertexCount);
 
@@ -654,6 +663,12 @@ void ShapesApp::BuildShapeGeometry()
 		vertices[k].Color = XMFLOAT4(DirectX::Colors::Yellow);
 	}
 
+	for (size_t i = 0; i < Base1.Vertices.size(); ++i, ++k)
+	{
+		vertices[k].Pos = Base1.Vertices[i].Position;
+		vertices[k].Color = XMFLOAT4(DirectX::Colors::Blue);
+	}
+
 	//for (size_t i = 0; i < cylinder.Vertices.size(); ++i, ++k)
 	//{
 	//	vertices[k].Pos = cylinder.Vertices[i].Position;
@@ -665,6 +680,7 @@ void ShapesApp::BuildShapeGeometry()
 	indices.insert(indices.end(), std::begin(grid.GetIndices16()), std::end(grid.GetIndices16()));
 	indices.insert(indices.end(), std::begin(column.GetIndices16()), std::end(column.GetIndices16()));
 	indices.insert(indices.end(), std::begin(columnTop.GetIndices16()), std::end(columnTop.GetIndices16()));
+	indices.insert(indices.end(), std::begin(Base1.GetIndices16()), std::end(Base1.GetIndices16()));
 
 
 	//indices.insert(indices.end(), std::begin(cylinder.GetIndices16()), std::end(cylinder.GetIndices16()));
@@ -696,6 +712,7 @@ void ShapesApp::BuildShapeGeometry()
 	geo->DrawArgs["ground"] = gridSubmesh;
 	geo->DrawArgs["column"] = columnSubmesh;
 	geo->DrawArgs["columnTop"] = columnTopSubmesh;
+	geo->DrawArgs["Base1"] = Base1Submesh;
 	//step8
 	/*geo->DrawArgs["grid"] = gridSubmesh;
 	geo->DrawArgs["sphere"] = sphereSubmesh;
@@ -912,6 +929,17 @@ void ShapesApp::BuildRenderItems()
 	columnTopBRight->StartIndexLocation = columnTopBRight->Geo->DrawArgs["columnTop"].StartIndexLocation;
 	columnTopBRight->BaseVertexLocation = columnTopBRight->Geo->DrawArgs["columnTop"].BaseVertexLocation;
 	mAllRitems.push_back(std::move(columnTopBRight));
+
+	auto Base1 = std::make_unique<RenderItem>();
+	XMStoreFloat4x4(&Base1->World, XMMatrixScaling(14.0f, 6.0f, 14.0f)* XMMatrixTranslation(0.0f, 3.0f, 0.0f));
+	Base1->ObjCBIndex = cbindex++;
+	Base1->Geo = mGeometries["shapeGeo"].get();
+	Base1->PrimitiveType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	Base1->IndexCount = Base1->Geo->DrawArgs["Base1"].IndexCount;
+	Base1->StartIndexLocation = Base1->Geo->DrawArgs["Base1"].StartIndexLocation;
+	Base1->BaseVertexLocation = Base1->Geo->DrawArgs["Base1"].BaseVertexLocation;
+	mAllRitems.push_back(std::move(Base1));
+
 
 
 	
