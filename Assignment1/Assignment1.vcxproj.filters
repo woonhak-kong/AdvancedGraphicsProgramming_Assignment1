@@ -39,7 +39,7 @@
     <ClCompile Include="FrameResource.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Week4-5-ShapePractice.cpp">
+    <ClCompile Include="Castle_Woonhak_Kong.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
