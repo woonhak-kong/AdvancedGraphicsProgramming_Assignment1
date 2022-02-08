@@ -125,7 +125,7 @@ private:
 
 	float mTheta = 1.5f * XM_PI;
 	float mPhi = 0.2f * XM_PI;
-	float mRadius = 15.0f;
+	float mRadius = 35.0f;
 
 	POINT mLastMousePos;
 };
@@ -536,12 +536,14 @@ void ShapesApp::BuildShadersAndInputLayout()
 void ShapesApp::BuildShapeGeometry()
 {
 	GeometryGenerator geoGen;
-	GeometryGenerator::MeshData box = geoGen.CreateBox(1.5f, 0.5f, 1.5f, 0);
+	GeometryGenerator::MeshData wholeWall = geoGen.CreateBox(1.0f, 1.0f, 1.0f, 0);
+
 	
 	//Step1
-	GeometryGenerator::MeshData grid = geoGen.CreateGrid(20.0f, 30.0f, 2, 2);
+	GeometryGenerator::MeshData grid = geoGen.CreateGrid(24.0f, 24.0f, 25, 25);
 	GeometryGenerator::MeshData sphere = geoGen.CreateSphere(0.5f, 10, 2);
 	GeometryGenerator::MeshData cylinder = geoGen.CreateCylinder(0.5f, 0.3f, 3.0f, 20, 20);
+
 
 	//
 	// We are concatenating all the geometry into one big vertex/index buffer.  So
@@ -549,28 +551,28 @@ void ShapesApp::BuildShapeGeometry()
 	//
 
 	// Cache the vertex offsets to each object in the concatenated vertex buffer.
-	UINT boxVertexOffset = 0;
+	UINT wholeWallVertexOffset = 0;
 	
 	//Step2
-	UINT gridVertexOffset = (UINT)box.Vertices.size();
+	UINT gridVertexOffset = (UINT)wholeWall.Vertices.size();
 	UINT sphereVertexOffset = gridVertexOffset + (UINT)grid.Vertices.size();
 	UINT cylinderVertexOffset = sphereVertexOffset + (UINT)sphere.Vertices.size();
 
 	// Cache the starting index for each object in the concatenated index buffer.
-	UINT boxIndexOffset = 0;
+	UINT wholeWallIndexOffset = 0;
 	
 	//Step3
-	UINT gridIndexOffset = (UINT)box.Indices32.size();
+	UINT gridIndexOffset = (UINT)wholeWall.Indices32.size();
 	UINT sphereIndexOffset = gridIndexOffset + (UINT)grid.Indices32.size();
 	UINT cylinderIndexOffset = sphereIndexOffset + (UINT)sphere.Indices32.size();
 
 	// Define the SubmeshGeometry that cover different 
 	// regions of the vertex/index buffers.
 
-	SubmeshGeometry boxSubmesh;
-	boxSubmesh.IndexCount = (UINT)box.Indices32.size();
-	boxSubmesh.StartIndexLocation = boxIndexOffset;
-	boxSubmesh.BaseVertexLocation = boxVertexOffset;
+	SubmeshGeometry wholeWallSubmesh;
+	wholeWallSubmesh.IndexCount = (UINT)wholeWall.Indices32.size();
+	wholeWallSubmesh.StartIndexLocation = wholeWallIndexOffset;
+	wholeWallSubmesh.BaseVertexLocation = wholeWallVertexOffset;
 
 	//step4
 	SubmeshGeometry gridSubmesh;
@@ -596,7 +598,7 @@ void ShapesApp::BuildShapeGeometry()
 	auto totalVertexCount = //box.Vertices.size() +
 
 	    //step5
-		box.Vertices.size() +
+		wholeWall.Vertices.size() +
 		grid.Vertices.size() +
 		sphere.Vertices.size() +
 		cylinder.Vertices.size();
@@ -604,9 +606,9 @@ void ShapesApp::BuildShapeGeometry()
 	std::vector<Vertex> vertices(totalVertexCount);
 
 	UINT k = 0;
-	for (size_t i = 0; i < box.Vertices.size(); ++i, ++k)
+	for (size_t i = 0; i < wholeWall.Vertices.size(); ++i, ++k)
 	{
-		vertices[k].Pos = box.Vertices[i].Position;
+		vertices[k].Pos = wholeWall.Vertices[i].Position;
 		vertices[k].Color = XMFLOAT4(DirectX::Colors::DarkOrange);
 	}
 
@@ -630,7 +632,7 @@ void ShapesApp::BuildShapeGeometry()
 	}
 
 	std::vector<std::uint16_t> indices;
-	indices.insert(indices.end(), std::begin(box.GetIndices16()), std::end(box.GetIndices16()));
+	indices.insert(indices.end(), std::begin(wholeWall.GetIndices16()), std::end(wholeWall.GetIndices16()));
 	//step7
 	indices.insert(indices.end(), std::begin(grid.GetIndices16()), std::end(grid.GetIndices16()));
 	indices.insert(indices.end(), std::begin(sphere.GetIndices16()), std::end(sphere.GetIndices16()));
@@ -659,7 +661,7 @@ void ShapesApp::BuildShapeGeometry()
 	geo->IndexFormat = DXGI_FORMAT_R16_UINT;
 	geo->IndexBufferByteSize = ibByteSize;
 
-	geo->DrawArgs["box"] = boxSubmesh;
+	geo->DrawArgs["wholeWall"] = wholeWallSubmesh;
 	//step8
 	geo->DrawArgs["grid"] = gridSubmesh;
 	geo->DrawArgs["sphere"] = sphereSubmesh;
@@ -722,21 +724,10 @@ void ShapesApp::BuildFrameResources()
 
 void ShapesApp::BuildRenderItems()
 {
-	auto boxRitem = std::make_unique<RenderItem>();
-	XMStoreFloat4x4(&boxRitem->World, XMMatrixScaling(2.0f, 2.0f, 2.0f) * XMMatrixTranslation(0.0f, 0.5f, 0.0f));
-	boxRitem->ObjCBIndex = 0;
-	boxRitem->Geo = mGeometries["shapeGeo"].get();
-	boxRitem->PrimitiveType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-	boxRitem->IndexCount = boxRitem->Geo->DrawArgs["box"].IndexCount;
-	boxRitem->StartIndexLocation = boxRitem->Geo->DrawArgs["box"].StartIndexLocation;
-	boxRitem->BaseVertexLocation = boxRitem->Geo->DrawArgs["box"].BaseVertexLocation;
-	mAllRitems.push_back(std::move(boxRitem));
-
-	
-	//Step9
+	int cbindex = 0;
 	auto gridRitem = std::make_unique<RenderItem>();
 	gridRitem->World = MathHelper::Identity4x4();
-	gridRitem->ObjCBIndex = 1;
+	gridRitem->ObjCBIndex = cbindex++;
 	gridRitem->Geo = mGeometries["shapeGeo"].get();
 	gridRitem->PrimitiveType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 	gridRitem->IndexCount = gridRitem->Geo->DrawArgs["grid"].IndexCount;
@@ -744,57 +735,122 @@ void ShapesApp::BuildRenderItems()
 	gridRitem->BaseVertexLocation = gridRitem->Geo->DrawArgs["grid"].BaseVertexLocation;
 	mAllRitems.push_back(std::move(gridRitem));
 
-	UINT objCBIndex = 2;
-	for (int i = 0; i < 5; ++i)
-	{
-		auto leftCylRitem = std::make_unique<RenderItem>();
-		auto rightCylRitem = std::make_unique<RenderItem>();
-		auto leftSphereRitem = std::make_unique<RenderItem>();
-		auto rightSphereRitem = std::make_unique<RenderItem>();
 
-		XMMATRIX leftCylWorld = XMMatrixTranslation(-5.0f, 1.5f, -10.0f + i * 5.0f);
-		XMMATRIX rightCylWorld = XMMatrixTranslation(+5.0f, 1.5f, -10.0f + i * 5.0f);
+	auto backWall = std::make_unique<RenderItem>();
+	XMStoreFloat4x4(&backWall->World, XMMatrixScaling(18.0f, 8.0f, 0.5f) * XMMatrixTranslation(0.0f, 4.0f, 9.0f));
+	backWall->ObjCBIndex = cbindex++;
+	backWall->Geo = mGeometries["shapeGeo"].get();
+	backWall->PrimitiveType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	backWall->IndexCount = backWall->Geo->DrawArgs["wholeWall"].IndexCount;
+	backWall->StartIndexLocation = backWall->Geo->DrawArgs["wholeWall"].StartIndexLocation;
+	backWall->BaseVertexLocation = backWall->Geo->DrawArgs["wholeWall"].BaseVertexLocation;
+	mAllRitems.push_back(std::move(backWall));
 
-		XMMATRIX leftSphereWorld = XMMatrixTranslation(-5.0f, 3.5f, -10.0f + i * 5.0f);
-		XMMATRIX rightSphereWorld = XMMatrixTranslation(+5.0f, 3.5f, -10.0f + i * 5.0f);
+	auto leftWall = std::make_unique<RenderItem>();
+	XMStoreFloat4x4(&leftWall->World, XMMatrixScaling(18.0f, 8.0f, 0.5f) * XMMatrixRotationAxis(XMVectorSet(0.0f, 1.0f, 0.0f,0.0f), XMConvertToRadians(90.0f)) * XMMatrixTranslation(-9.0f, 4.0f, 0.0f));
+	leftWall->ObjCBIndex = cbindex++;
+	leftWall->Geo = mGeometries["shapeGeo"].get();
+	leftWall->PrimitiveType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	leftWall->IndexCount = leftWall->Geo->DrawArgs["wholeWall"].IndexCount;
+	leftWall->StartIndexLocation = leftWall->Geo->DrawArgs["wholeWall"].StartIndexLocation;
+	leftWall->BaseVertexLocation = leftWall->Geo->DrawArgs["wholeWall"].BaseVertexLocation;
+	mAllRitems.push_back(std::move(leftWall));
 
-		XMStoreFloat4x4(&leftCylRitem->World, rightCylWorld);
-		leftCylRitem->ObjCBIndex = objCBIndex++;
-		leftCylRitem->Geo = mGeometries["shapeGeo"].get();
-		leftCylRitem->PrimitiveType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-		leftCylRitem->IndexCount = leftCylRitem->Geo->DrawArgs["cylinder"].IndexCount;
-		leftCylRitem->StartIndexLocation = leftCylRitem->Geo->DrawArgs["cylinder"].StartIndexLocation;
-		leftCylRitem->BaseVertexLocation = leftCylRitem->Geo->DrawArgs["cylinder"].BaseVertexLocation;
+	auto rightWall = std::make_unique<RenderItem>();
+	XMStoreFloat4x4(&rightWall->World, XMMatrixScaling(18.0f, 8.0f, 0.5f) * XMMatrixRotationAxis(XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f), XMConvertToRadians(90.0f)) * XMMatrixTranslation(9.0f, 4.0f, 0.0f));
+	rightWall->ObjCBIndex = cbindex++;
+	rightWall->Geo = mGeometries["shapeGeo"].get();
+	rightWall->PrimitiveType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	rightWall->IndexCount = rightWall->Geo->DrawArgs["wholeWall"].IndexCount;
+	rightWall->StartIndexLocation = rightWall->Geo->DrawArgs["wholeWall"].StartIndexLocation;
+	rightWall->BaseVertexLocation = rightWall->Geo->DrawArgs["wholeWall"].BaseVertexLocation;
+	mAllRitems.push_back(std::move(rightWall));
 
-		XMStoreFloat4x4(&rightCylRitem->World, leftCylWorld);
-		rightCylRitem->ObjCBIndex = objCBIndex++;
-		rightCylRitem->Geo = mGeometries["shapeGeo"].get();
-		rightCylRitem->PrimitiveType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-		rightCylRitem->IndexCount = rightCylRitem->Geo->DrawArgs["cylinder"].IndexCount;
-		rightCylRitem->StartIndexLocation = rightCylRitem->Geo->DrawArgs["cylinder"].StartIndexLocation;
-		rightCylRitem->BaseVertexLocation = rightCylRitem->Geo->DrawArgs["cylinder"].BaseVertexLocation;
+	auto frontWall1 = std::make_unique<RenderItem>();
+	XMStoreFloat4x4(&frontWall1->World, XMMatrixScaling(6.0f, 5.0f, 0.5f) * XMMatrixTranslation(-5.0f, 2.5f, -9.0f));
+	frontWall1->ObjCBIndex = cbindex++;
+	frontWall1->Geo = mGeometries["shapeGeo"].get();
+	frontWall1->PrimitiveType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	frontWall1->IndexCount = frontWall1->Geo->DrawArgs["wholeWall"].IndexCount;
+	frontWall1->StartIndexLocation = frontWall1->Geo->DrawArgs["wholeWall"].StartIndexLocation;
+	frontWall1->BaseVertexLocation = frontWall1->Geo->DrawArgs["wholeWall"].BaseVertexLocation;
+	mAllRitems.push_back(std::move(frontWall1));
 
-		XMStoreFloat4x4(&leftSphereRitem->World, leftSphereWorld);
-		leftSphereRitem->ObjCBIndex = objCBIndex++;
-		leftSphereRitem->Geo = mGeometries["shapeGeo"].get();
-		leftSphereRitem->PrimitiveType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-		leftSphereRitem->IndexCount = leftSphereRitem->Geo->DrawArgs["sphere"].IndexCount;
-		leftSphereRitem->StartIndexLocation = leftSphereRitem->Geo->DrawArgs["sphere"].StartIndexLocation;
-		leftSphereRitem->BaseVertexLocation = leftSphereRitem->Geo->DrawArgs["sphere"].BaseVertexLocation;
+	auto frontWall2 = std::make_unique<RenderItem>();
+	XMStoreFloat4x4(&frontWall2->World, XMMatrixScaling(6.0f, 5.0f, 0.5f) * XMMatrixTranslation(5.0f, 2.5f, -9.0f));
+	frontWall2->ObjCBIndex = cbindex++;
+	frontWall2->Geo = mGeometries["shapeGeo"].get();
+	frontWall2->PrimitiveType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	frontWall2->IndexCount = frontWall2->Geo->DrawArgs["wholeWall"].IndexCount;
+	frontWall2->StartIndexLocation = frontWall2->Geo->DrawArgs["wholeWall"].StartIndexLocation;
+	frontWall2->BaseVertexLocation = frontWall2->Geo->DrawArgs["wholeWall"].BaseVertexLocation;
+	mAllRitems.push_back(std::move(frontWall2));
 
-		XMStoreFloat4x4(&rightSphereRitem->World, rightSphereWorld);
-		rightSphereRitem->ObjCBIndex = objCBIndex++;
-		rightSphereRitem->Geo = mGeometries["shapeGeo"].get();
-		rightSphereRitem->PrimitiveType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-		rightSphereRitem->IndexCount = rightSphereRitem->Geo->DrawArgs["sphere"].IndexCount;
-		rightSphereRitem->StartIndexLocation = rightSphereRitem->Geo->DrawArgs["sphere"].StartIndexLocation;
-		rightSphereRitem->BaseVertexLocation = rightSphereRitem->Geo->DrawArgs["sphere"].BaseVertexLocation;
+	auto frontWall3 = std::make_unique<RenderItem>();
+	XMStoreFloat4x4(&frontWall3->World, XMMatrixScaling(18.0f, 3.0f, 0.5f) * XMMatrixTranslation(0.0f, 6.5f, -9.0f));
+	frontWall3->ObjCBIndex = cbindex++;
+	frontWall3->Geo = mGeometries["shapeGeo"].get();
+	frontWall3->PrimitiveType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	frontWall3->IndexCount = frontWall3->Geo->DrawArgs["wholeWall"].IndexCount;
+	frontWall3->StartIndexLocation = frontWall3->Geo->DrawArgs["wholeWall"].StartIndexLocation;
+	frontWall3->BaseVertexLocation = frontWall3->Geo->DrawArgs["wholeWall"].BaseVertexLocation;
+	mAllRitems.push_back(std::move(frontWall3));
+	
+	
+	//Step9
+	
 
-		mAllRitems.push_back(std::move(leftCylRitem));
-		mAllRitems.push_back(std::move(rightCylRitem));
-		mAllRitems.push_back(std::move(leftSphereRitem));
-		mAllRitems.push_back(std::move(rightSphereRitem));
-	}
+	//UINT objCBIndex = 2;
+	//for (int i = 0; i < 5; ++i)
+	//{
+	//	auto leftCylRitem = std::make_unique<RenderItem>();
+	//	auto rightCylRitem = std::make_unique<RenderItem>();
+	//	auto leftSphereRitem = std::make_unique<RenderItem>();
+	//	auto rightSphereRitem = std::make_unique<RenderItem>();
+
+	//	XMMATRIX leftCylWorld = XMMatrixTranslation(-5.0f, 1.5f, -10.0f + i * 5.0f);
+	//	XMMATRIX rightCylWorld = XMMatrixTranslation(+5.0f, 1.5f, -10.0f + i * 5.0f);
+
+	//	XMMATRIX leftSphereWorld = XMMatrixTranslation(-5.0f, 3.5f, -10.0f + i * 5.0f);
+	//	XMMATRIX rightSphereWorld = XMMatrixTranslation(+5.0f, 3.5f, -10.0f + i * 5.0f);
+
+	//	XMStoreFloat4x4(&leftCylRitem->World, rightCylWorld);
+	//	leftCylRitem->ObjCBIndex = objCBIndex++;
+	//	leftCylRitem->Geo = mGeometries["shapeGeo"].get();
+	//	leftCylRitem->PrimitiveType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	//	leftCylRitem->IndexCount = leftCylRitem->Geo->DrawArgs["cylinder"].IndexCount;
+	//	leftCylRitem->StartIndexLocation = leftCylRitem->Geo->DrawArgs["cylinder"].StartIndexLocation;
+	//	leftCylRitem->BaseVertexLocation = leftCylRitem->Geo->DrawArgs["cylinder"].BaseVertexLocation;
+
+	//	XMStoreFloat4x4(&rightCylRitem->World, leftCylWorld);
+	//	rightCylRitem->ObjCBIndex = objCBIndex++;
+	//	rightCylRitem->Geo = mGeometries["shapeGeo"].get();
+	//	rightCylRitem->PrimitiveType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	//	rightCylRitem->IndexCount = rightCylRitem->Geo->DrawArgs["cylinder"].IndexCount;
+	//	rightCylRitem->StartIndexLocation = rightCylRitem->Geo->DrawArgs["cylinder"].StartIndexLocation;
+	//	rightCylRitem->BaseVertexLocation = rightCylRitem->Geo->DrawArgs["cylinder"].BaseVertexLocation;
+
+	//	XMStoreFloat4x4(&leftSphereRitem->World, leftSphereWorld);
+	//	leftSphereRitem->ObjCBIndex = objCBIndex++;
+	//	leftSphereRitem->Geo = mGeometries["shapeGeo"].get();
+	//	leftSphereRitem->PrimitiveType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	//	leftSphereRitem->IndexCount = leftSphereRitem->Geo->DrawArgs["sphere"].IndexCount;
+	//	leftSphereRitem->StartIndexLocation = leftSphereRitem->Geo->DrawArgs["sphere"].StartIndexLocation;
+	//	leftSphereRitem->BaseVertexLocation = leftSphereRitem->Geo->DrawArgs["sphere"].BaseVertexLocation;
+
+	//	XMStoreFloat4x4(&rightSphereRitem->World, rightSphereWorld);
+	//	rightSphereRitem->ObjCBIndex = objCBIndex++;
+	//	rightSphereRitem->Geo = mGeometries["shapeGeo"].get();
+	//	rightSphereRitem->PrimitiveType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	//	rightSphereRitem->IndexCount = rightSphereRitem->Geo->DrawArgs["sphere"].IndexCount;
+	//	rightSphereRitem->StartIndexLocation = rightSphereRitem->Geo->DrawArgs["sphere"].StartIndexLocation;
+	//	rightSphereRitem->BaseVertexLocation = rightSphereRitem->Geo->DrawArgs["sphere"].BaseVertexLocation;
+
+	//	mAllRitems.push_back(std::move(leftCylRitem));
+	//	mAllRitems.push_back(std::move(rightCylRitem));
+	//	mAllRitems.push_back(std::move(leftSphereRitem));
+	//	mAllRitems.push_back(std::move(rightSphereRitem));
+	//}
 
 	// All the render items are opaque.
 	for (auto& e : mAllRitems)
